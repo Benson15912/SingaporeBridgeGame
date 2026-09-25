@@ -1,15 +1,23 @@
 "use client";
 
-import { ensureSession } from "./supabase/client";
+import { ensureSession, supabaseBrowser } from "./supabase/client";
 
 /** POST to one of our API routes. Throws an Error with the server's message on failure. */
 export async function api<T = { ok: true }>(path: string, body: unknown): Promise<T> {
-  await ensureSession();
-  const res = await fetch(path, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  const send = async () => {
+    await ensureSession();
+    return fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  };
+  let res = await send();
+  if (res.status === 401) {
+    // The guest account was removed by the idle cleanup: start a fresh one and retry once.
+    await supabaseBrowser().auth.signOut({ scope: "local" });
+    res = await send();
+  }
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error ?? "Request failed.");
   return data as T;

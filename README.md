@@ -36,7 +36,7 @@ Play Floating Bridge (Singapore Bridge) online with 3 friends. One player create
 
 1. Create a project at [supabase.com](https://supabase.com). The free tier is fine.
 2. Go to **Authentication → Sign In / Providers** and turn on **Allow anonymous sign-ins**.
-3. Open the **SQL Editor**, paste in all of `supabase/migrations/0001_init.sql`, and run it. Alternatively, run `supabase db push` with the Supabase CLI.
+3. Open the **SQL Editor** and run `supabase/migrations/0001_init.sql`, then `supabase/migrations/0002_cleanup.sql`. Alternatively, run `supabase db push` with the Supabase CLI. If the second file fails on `create extension`, enable **pg_cron** under **Database → Extensions** and run it again.
 4. Go to **Project Settings → API** and copy the project URL, the `anon` key and the `service_role` key.
 
 ### 2. Run locally
@@ -61,6 +61,18 @@ To play all four seats yourself, use 4 separate browser profiles or incognito wi
 3. Deploy.
 
 Never expose `SUPABASE_SERVICE_ROLE_KEY` to the browser. It's only used in `src/lib/supabase/admin.ts`, which is marked `server-only`.
+
+## Cleanup
+
+Once an hour, a `pg_cron` job in Supabase runs `cleanup_stale_rooms()`, defined in `0002_cleanup.sql`.
+
+- **Rooms:** it deletes any room with no activity for 12 hours, together with its players, hands, game state, scores and chat. A room's last activity is its creation, the last join, the last move, or the last chat message, whichever is latest.
+- **Guest accounts:** it deletes anonymous accounts that aren't seated in any room and haven't signed in for 12 hours. Real (email/OAuth) accounts are never touched.
+- **Returning players:** if a player whose guest account was deleted comes back, the site signs them in with a fresh guest account.
+
+**Changing it:**
+- To use a different idle time, change the default argument in `0002_cleanup.sql`.
+- To see what the job has done, run `select * from cron.job_run_details order by start_time desc limit 10;`.
 
 ## Sound effects
 
