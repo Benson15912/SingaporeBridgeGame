@@ -5,6 +5,7 @@ import { useState } from "react";
 import { BidText, CardText, PlayingCard, SuitText } from "@/components/PlayingCard";
 import { toast } from "@/components/Toaster";
 import { api } from "@/lib/api";
+import { playSound } from "@/lib/sounds";
 import {
   BID_SUITS,
   canBid,
@@ -188,7 +189,10 @@ export function PartnerPicker({ state, hand, act }: { state: GameState; hand: Ca
         {[...SUITS].reverse().map((s) => (
           <button
             key={s}
-            onClick={() => setSuit(s)}
+            onClick={() => {
+              setSuit(s);
+              playSound("select");
+            }}
             className={clsx("rounded-md py-1.5 text-lg", suit === s ? "bg-panel-2" : "opacity-60 hover:opacity-100")}
           >
             <SuitText suit={s} />
@@ -204,7 +208,10 @@ export function PartnerPicker({ state, hand, act }: { state: GameState; hand: Ca
             <button
               key={card}
               disabled={mine}
-              onClick={() => setPicked(card)}
+              onClick={() => {
+                setPicked(card);
+                playSound("select");
+              }}
               title={mine ? "In your hand" : undefined}
               className={clsx(
                 "rounded-md py-1.5 text-sm font-semibold transition",

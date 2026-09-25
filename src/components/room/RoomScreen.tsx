@@ -1,13 +1,15 @@
 "use client";
 
-import { Check, Copy, LogOut, MessageSquare, Square, Trophy, X } from "lucide-react";
+import { Check, Copy, LogOut, MessageSquare, Square, Trophy, Volume2, VolumeX, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "@/components/Toaster";
+import { useGameSounds } from "@/hooks/useGameSounds";
 import { useRoom, type RoomData } from "@/hooks/useRoom";
 import { api, loadNickname, saveNickname } from "@/lib/api";
 import { NICKNAME_MAX } from "@/lib/rows";
+import { isMuted, onMuteChange, setMuted } from "@/lib/sounds";
 import { GameTable } from "./GameTable";
 import { Lobby } from "./Lobby";
 import { Sidebar } from "./Sidebar";
@@ -35,6 +37,8 @@ function Room({ code, userId, data, online }: { code: string; userId: string; da
   useEffect(() => {
     if (panel === "side") setSeenChatId(lastChatId);
   }, [lastChatId, panel]);
+
+  useGameSounds(data.game, inGame, me?.seat, data.chat, userId);
 
   async function leave() {
     try {
@@ -76,6 +80,7 @@ function Room({ code, userId, data, online }: { code: string; userId: string; da
             </span>
             <Trophy className="size-4" />
           </HeaderButton>
+          <MuteButton />
           <HeaderButton onClick={leave} label="Leave room">
             <LogOut className="size-4" />
           </HeaderButton>
@@ -135,6 +140,19 @@ function HeaderButton({
     >
       {children}
     </button>
+  );
+}
+
+function MuteButton() {
+  const [muted, setMutedState] = useState(false);
+  useEffect(() => {
+    setMutedState(isMuted());
+    return onMuteChange(setMutedState);
+  }, []);
+  return (
+    <HeaderButton onClick={() => setMuted(!muted)} label={muted ? "Unmute sounds" : "Mute sounds"}>
+      {muted ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
+    </HeaderButton>
   );
 }
 

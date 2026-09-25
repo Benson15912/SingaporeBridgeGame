@@ -3,7 +3,7 @@
 import clsx from "clsx";
 import { Crown } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
-import { BidText, CardBack, CardText } from "@/components/PlayingCard";
+import { BidText, CardBack, CardText, SuitText } from "@/components/PlayingCard";
 import { toast } from "@/components/Toaster";
 import type { RoomData } from "@/hooks/useRoom";
 import { api } from "@/lib/api";
@@ -238,28 +238,35 @@ function StatusBar({ state, players, mySeat }: { state: GameState; players: Play
   const whoseTurn = state.turn === mySeat ? "Your turn" : state.turn !== null ? `${nameOf(players, state.turn)}'s turn` : "";
 
   return (
-    <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 rounded-xl border border-line bg-panel px-4 py-2.5 text-sm">
+    <div className="flex flex-wrap items-center gap-x-8 gap-y-3 rounded-2xl border border-line bg-panel px-5 py-3.5">
       {c ? (
         <>
           <Stat label="Contract">
-            <BidText level={c.level} suit={c.suit} /> <span className="text-muted">by</span> {nameOf(players, c.declarer)}
+            <BidText level={c.level} suit={c.suit} />{" "}
+            <span className="text-base font-normal text-muted">by</span> {nameOf(players, c.declarer)}
           </Stat>
-          <Stat label="Trump">{c.suit === "NT" ? "None" : SUIT_NAME[c.suit]}</Stat>
+          <Stat label="Trump">
+            {c.suit === "NT" ? (
+              "None"
+            ) : (
+              <>
+                <SuitText suit={c.suit} /> {SUIT_NAME[c.suit]}
+              </>
+            )}
+          </Stat>
           <Stat label="Partner card">
             {state.partnerCard ? (
               <>
                 <CardText card={state.partnerCard} />{" "}
-                <span className="text-muted">
-                  {state.partnerRevealed !== null ? `(${nameOf(players, state.partnerRevealed)})` : "(hidden)"}
+                <span className="text-base font-normal text-muted">
+                  {state.partnerRevealed !== null ? nameOf(players, state.partnerRevealed) : "(hidden)"}
                 </span>
               </>
             ) : (
               <span className="text-muted">Choosing…</span>
             )}
           </Stat>
-          <Stat label="Target">
-            {tricksNeeded(c.level)} tricks
-          </Stat>
+          <Stat label="Target">{tricksNeeded(c.level)} tricks</Stat>
           {c.suit !== "NT" && state.phase === "playing" && (
             <Stat label="Trump broken">{state.trumpBroken ? "Yes" : "No"}</Stat>
           )}
@@ -267,16 +274,25 @@ function StatusBar({ state, players, mySeat }: { state: GameState; players: Play
       ) : (
         <Stat label="Phase">{state.phase === "wash" ? "Checking for washes" : "Bidding"}</Stat>
       )}
-      {whoseTurn && <span className={clsx("ml-auto font-medium", state.turn === mySeat ? "text-gold" : "text-card/80")}>{whoseTurn}</span>}
+      {whoseTurn && (
+        <span
+          className={clsx(
+            "ml-auto rounded-full px-3 py-1 text-base font-semibold",
+            state.turn === mySeat ? "bg-gold text-ink" : "bg-panel-2 text-card/90",
+          )}
+        >
+          {whoseTurn}
+        </span>
+      )}
     </div>
   );
 }
 
 function Stat({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <span className="flex items-baseline gap-1.5">
-      <span className="text-[11px] tracking-wider text-muted uppercase">{label}</span>
-      <span className="text-card">{children}</span>
-    </span>
+    <div className="flex flex-col gap-0.5">
+      <span className="text-xs font-medium tracking-wider text-muted uppercase">{label}</span>
+      <span className="text-lg font-semibold text-card sm:text-xl">{children}</span>
+    </div>
   );
 }
