@@ -23,24 +23,30 @@ export function Hand({ cards, state, mySeat, act }: { cards: Card[]; state: Game
   const isDeal =
     cards.length === HAND_SIZE &&
     cards.join() !== prevCards.current.join() &&
-    (prevCards.current.length > 0 || state.phase === "wash");
+    (prevCards.current.length > 0 || state.phase === "wash" || state.phase === "bidding");
   if (isDeal && !dealFresh.current) {
     dealOrder.current = new Map(cards.map((c, i) => [c, i]));
     dealFresh.current = true;
   }
   const dealing = dealOrder.current.size > 0;
 
+  // Timers live in a ref and are never cancelled on re-render: a re-delivered hand (same cards, new array)
+  // or StrictMode's double effect run must not cut a deal short.
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
   useEffect(() => {
     prevCards.current = cards;
     if (!dealFresh.current) return;
     dealFresh.current = false;
-    const timers = cards.map((_, i) => setTimeout(() => playSound("dealCard"), i * DEAL_STEP * 1000));
-    timers.push(setTimeout(() => {
+    timers.current.forEach(clearTimeout);
+    timers.current = cards.map((_, i) => setTimeout(() => playSound("dealCard"), i * DEAL_STEP * 1000));
+    timers.current.push(
+      setTimeout(() => {
         dealOrder.current.clear();
         rerender((n) => n + 1);
-      }, DEAL_TOTAL_MS));
-    return () => timers.forEach(clearTimeout);
+      }, DEAL_TOTAL_MS),
+    );
   }, [cards]);
+
   const canPlay = state.phase === "playing" && state.turn === mySeat && pending === null && !dealing;
   const legal = canPlay ? legalPlays(cards, state.currentTrick, state.contract!.suit, state.trumpBroken) : [];
 
@@ -54,7 +60,7 @@ export function Hand({ cards, state, mySeat, act }: { cards: Card[]; state: Game
 
   return (
     <div className="flex justify-center pt-4 pb-2" role="list" aria-label="Your hand">
-      <AnimatePresence initial={false}>
+      <AnimatePresence>
         {cards.map((card) => {
           const isLegal = legal.includes(card);
           const dim = canPlay && !isLegal;
