@@ -123,7 +123,12 @@ export function useRoom(rawCode: string) {
             if (row?.state) setData((d) => (d ? { ...d, game: row } : d));
             else refresh("game");
           })
-          .on("postgres_changes", { event: "*", schema: "public", table: "hands", filter }, () => refresh("hand"))
+          .on("postgres_changes", { event: "*", schema: "public", table: "hands", filter }, (payload) => {
+            // RLS only delivers our own hand; use the payload directly instead of refetching.
+            const row = payload.new as { user_id?: string; cards?: Card[] } | undefined;
+            if (row?.cards && row.user_id === uid) setData((d) => (d ? { ...d, hand: row.cards! } : d));
+            else refresh("hand");
+          })
           .on("postgres_changes", { event: "*", schema: "public", table: "scores", filter }, () => refresh("scores"))
           .on(
             "postgres_changes",

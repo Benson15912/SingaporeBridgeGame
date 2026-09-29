@@ -1,5 +1,5 @@
 import { applyAction, isCard, isValidBid, pointsForWin, type Action } from "@/lib/game";
-import { commitRound, getMembership, HttpError, loadRound, route, VersionConflict } from "@/lib/server/rooms";
+import { commitRound, getTable, HttpError, loadRound, route, toRound, VersionConflict } from "@/lib/server/rooms";
 
 function parseAction(raw: unknown): Action {
   const a = (raw ?? {}) as Record<string, unknown>;
@@ -22,11 +22,12 @@ function parseAction(raw: unknown): Action {
 
 export const POST = route(async (body, userId) => {
   const action = parseAction(body.action);
-  const { room, players, me } = await getMembership(body.code, userId);
+  const { room, players, me, rows } = await getTable(body.code, userId);
   if (room.status !== "playing") throw new HttpError(409, "No game in progress.");
 
   for (let attempt = 0; attempt < 3; attempt++) {
-    const { round, version, roundNo } = await loadRound(room.id);
+    // First attempt reuses the rows we already fetched; only a version conflict needs a reload.
+    const { round, version, roundNo } = attempt === 0 ? toRound(rows) : await loadRound(room.id);
     const next = applyAction(round, me.seat, action);
 
     let scores;

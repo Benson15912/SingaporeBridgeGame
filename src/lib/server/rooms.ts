@@ -19,10 +19,12 @@ export function route<T>(fn: (body: Record<string, unknown>, userId: string) => 
   return async (req: Request) => {
     try {
       const supabase = await supabaseServer();
-      const { data } = await supabase.auth.getUser();
-      if (!data.user) throw new HttpError(401, "Not signed in. Refresh the page and try again.");
+      // Verifies the JWT locally when possible, instead of a network call to Supabase Auth.
+      const { data } = await supabase.auth.getClaims();
+      const userId = data?.claims.sub;
+      if (!userId) throw new HttpError(401, "Not signed in. Refresh the page and try again.");
       const body = (await req.json().catch(() => ({}))) as Record<string, unknown>;
-      return NextResponse.json((await fn(body, data.user.id)) ?? { ok: true });
+      return NextResponse.json((await fn(body, userId)) ?? { ok: true });
     } catch (err) {
       if (err instanceof HttpError) return NextResponse.json({ error: err.message }, { status: err.status });
       if (err instanceof GameError) return NextResponse.json({ error: err.message }, { status: 400 });
@@ -70,23 +72,54 @@ export async function getMembership(code: unknown, userId: string) {
   return { room, players, me };
 }
 
-export async function loadRound(roomId: string): Promise<{ round: Round; version: number; roundNo: number }> {
-  const db = supabaseAdmin();
-  const [game, secrets, hands] = await Promise.all([
-    db.from("games").select("*").eq("room_id", roomId).maybeSingle<GameRow>(),
-    db.from("game_secrets").select("secrets").eq("room_id", roomId).maybeSingle(),
-    db.from("hands").select("seat, cards").eq("room_id", roomId),
-  ]);
-  const g = must(game);
+interface RoundRows {
+  games: GameRow | GameRow[] | null;
+  game_secrets: { secrets: Round["secrets"] } | { secrets: Round["secrets"] }[] | null;
+  hands: { seat: Seat; cards: string[] }[];
+}
+
+const one = <T>(v: T | T[] | null): T | null => (Array.isArray(v) ? (v[0] ?? null) : v);
+
+export function toRound(rows: RoundRows): { round: Round; version: number; roundNo: number } {
+  const g = one(rows.games);
   if (!g) throw new HttpError(409, "No game in progress.");
-  const handRows = must(hands) as { seat: Seat; cards: string[] }[];
   const handArr: Hands = [[], [], [], []];
-  for (const h of handRows) handArr[h.seat] = h.cards;
+  for (const h of rows.hands) handArr[h.seat] = h.cards;
   return {
-    round: { state: g.state, secrets: must(secrets)?.secrets ?? { partnerSeat: null }, hands: handArr },
+    round: { state: g.state, secrets: one(rows.game_secrets)?.secrets ?? { partnerSeat: null }, hands: handArr },
     version: g.version,
     roundNo: g.round_no,
   };
+}
+
+export async function loadRound(roomId: string): Promise<{ round: Round; version: number; roundNo: number }> {
+  const rows = must(
+    await supabaseAdmin()
+      .from("rooms")
+      .select("games(*), game_secrets(secrets), hands(seat, cards)")
+      .eq("id", roomId)
+      .maybeSingle<RoundRows>(),
+  );
+  if (!rows) throw new HttpError(404, "Room not found.");
+  return toRound(rows);
+}
+
+/** Membership check and the current round in a single query (used by the hot path: game actions). */
+export async function getTable(code: unknown, userId: string) {
+  const normalised = typeof code === "string" ? normaliseCode(code) : "";
+  const row = must(
+    await supabaseAdmin()
+      .from("rooms")
+      .select("*, room_players(*), games(*), game_secrets(secrets), hands(seat, cards)")
+      .eq("code", normalised)
+      .maybeSingle<RoomRow & RoundRows & { room_players: PlayerRow[] }>(),
+  );
+  if (!row) throw new HttpError(404, "Room not found. Check the code.");
+  const { room_players, games, game_secrets, hands, ...room } = row;
+  const players = [...room_players].sort((a, b) => a.joined_at.localeCompare(b.joined_at));
+  const me = players.find((p) => p.user_id === userId);
+  if (!me) throw new HttpError(403, "You're not in this room.");
+  return { room: room as RoomRow, players, me, rows: { games, game_secrets, hands } as RoundRows };
 }
 
 export class VersionConflict extends Error {}
