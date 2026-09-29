@@ -85,6 +85,17 @@ const sounds = {
   ),
   lose: mix([bell(G4, 0.7, 0.3, 4), 0], [bell(Eb4, 0.7, 0.3, 4), 0.22], [bell(C4, 1.4, 0.34, 2.5), 0.44]),
   chat: bell(note(14), 0.25, 0.2, 14),
+  // One card of the deal; the UI plays it once per card, in step with the animation. Keep last so the others stay identical.
+  "deal-card": snap(0.05, 0.4, 0.6),
+  // Dramatic sting for the partner reveal: a low boom, then a rising bell run.
+  "partner-sting": mix(
+    [bell(note(-24), 1.1, 0.55, 3.5), 0],
+    [bell(C5, 0.9, 0.25, 4), 0.14],
+    [bell(E5, 0.9, 0.25, 4), 0.26],
+    [bell(G5, 0.9, 0.25, 4), 0.38],
+    [bell(C6, 1.8, 0.32, 2.2), 0.5],
+    [bell(E6, 1.6, 0.16, 2.2), 0.5],
+  ),
 };
 
 function toWav(samples) {

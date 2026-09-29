@@ -9,10 +9,11 @@ export const SOUNDS = {
   cardPlay: { src: "/sounds/card-play.wav", volume: 0.7 }, // any card hits the table
   select: { src: "/sounds/select.wav", volume: 0.5 }, // picking a partner card
   bid: { src: "/sounds/bid.wav", volume: 0.5 }, // someone bids or passes
-  deal: { src: "/sounds/deal.wav", volume: 0.6 }, // new hand dealt (incl. redeals)
+  deal: { src: "/sounds/deal.wav", volume: 0.6 }, // unused: the hand plays dealCard per card instead
+  dealCard: { src: "/sounds/deal-card.wav", volume: 0.5 }, // one card of the deal animation
   trickWon: { src: "/sounds/trick-won.wav", volume: 0.5 }, // a trick is completed
   yourTurn: { src: "/sounds/your-turn.wav", volume: 0.6 }, // it becomes your turn
-  partnerReveal: { src: "/sounds/partner-reveal.wav", volume: 0.6 }, // the called card is played
+  partnerReveal: { src: "/sounds/partner-sting.wav", volume: 0.7 }, // the called card is played
   win: { src: "/sounds/win.wav", volume: 0.7 }, // your side won the round
   lose: { src: "/sounds/lose.wav", volume: 0.7 }, // your side lost the round
   chat: { src: "/sounds/chat.wav", volume: 0.4 }, // chat message from someone else

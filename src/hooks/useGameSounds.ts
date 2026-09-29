@@ -30,10 +30,8 @@ export function useGameSounds(
     const s = current.state;
     const p = prev?.state;
     const newDeal = !p || prev!.round_no !== current.round_no || (s.notice !== null && s.notice !== p.notice);
-    if (newDeal) {
-      playSound("deal");
-      return;
-    }
+    // The deal sound is played card by card from Hand, in sync with the animation.
+    if (newDeal) return;
 
     const later = (fn: () => void, ms: number) => setTimeout(fn, ms);
 
@@ -41,7 +39,7 @@ export function useGameSounds(
     if (cardsPlayed(s) > cardsPlayed(p)) playSound("cardPlay");
     if (s.tricksPlayed > p.tricksPlayed && !s.result) later(() => playSound("trickWon"), 350);
     if (p.partnerRevealed === null && s.partnerRevealed !== null && !s.result) {
-      later(() => playSound("partnerReveal"), 200);
+      later(() => playSound("partnerReveal"), 150);
     }
     if (s.result && !p.result) {
       const winners = s.result.declarerWon ? s.result.declarerSide : s.result.defenders;

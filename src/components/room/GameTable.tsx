@@ -2,8 +2,9 @@
 
 import clsx from "clsx";
 import { Crown } from "lucide-react";
-import { useCallback, useEffect, useRef } from "react";
-import { BidText, CardBack, CardText, SuitText } from "@/components/PlayingCard";
+import { AnimatePresence, motion } from "framer-motion";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { BidText, CardBack, CardText, PlayingCard, SuitText } from "@/components/PlayingCard";
 import { toast } from "@/components/Toaster";
 import type { RoomData } from "@/hooks/useRoom";
 import { api } from "@/lib/api";
@@ -61,6 +62,8 @@ export function GameTable({
     };
   }, [myTurn]);
 
+  const revealed = useRevealedPartner(state);
+
   const seatsAround: Seat[] = [1, 2, 3].map((o) => ((mySeat + o) % 4) as Seat);
 
   return (
@@ -77,16 +80,37 @@ export function GameTable({
             players={data.players}
             hostId={data.room.host_id}
             online={online}
+            revealing={revealed === seat}
           />
         ))}
 
         <div className="absolute inset-x-2 top-20 bottom-4 grid place-items-center sm:inset-x-28 sm:top-16">
           <CenterPanel state={state} data={data} mySeat={mySeat} act={act} code={code} />
         </div>
+
+        <AnimatePresence>
+          {revealed !== null && state.partnerCard && (
+            <PartnerBanner
+              key={`${game.round_no}-${revealed}`}
+              card={state.partnerCard}
+              name={revealed === mySeat ? "You" : nameOf(data.players, revealed)}
+              declarer={
+                state.contract!.declarer === mySeat ? "you" : nameOf(data.players, state.contract!.declarer)
+              }
+              isMe={revealed === mySeat}
+            />
+          )}
+        </AnimatePresence>
       </div>
 
       <div className="flex items-center justify-center gap-3 text-sm">
-        <span className={clsx("font-medium", myTurn ? "text-gold" : "text-card/80")}>
+        <span
+          className={clsx(
+            "font-medium",
+            myTurn ? "text-gold" : "text-card/80",
+            revealed === mySeat && "animate-pulse rounded bg-emerald-400/20 px-2 text-emerald-300",
+          )}
+        >
           {me.nickname} (you)
         </span>
         <SeatTags state={state} seat={mySeat} />
@@ -137,6 +161,80 @@ function CenterPanel({
   }
 }
 
+const REVEAL_MS = 3200;
+
+/** The partner's seat for a few seconds after the called card is played, then null. Silent on page load. */
+function useRevealedPartner(state: GameState): Seat | null {
+  const [seat, setSeat] = useState<Seat | null>(null);
+  const prev = useRef(state.partnerRevealed);
+  const round = useRef(state.dealer);
+
+  useEffect(() => {
+    const was = prev.current;
+    prev.current = state.partnerRevealed;
+    if (was !== null || state.partnerRevealed === null || state.result) return;
+    setSeat(state.partnerRevealed);
+    const t = setTimeout(() => setSeat(null), REVEAL_MS);
+    return () => clearTimeout(t);
+  }, [state.partnerRevealed, state.result]);
+
+  // A new round clears any banner still on screen.
+  useEffect(() => {
+    if (round.current !== state.dealer) setSeat(null);
+    round.current = state.dealer;
+  }, [state.dealer]);
+
+  return seat;
+}
+
+function PartnerBanner({
+  card,
+  name,
+  declarer,
+  isMe,
+}: {
+  card: string;
+  name: string;
+  declarer: string;
+  isMe: boolean;
+}) {
+  return (
+    <motion.div
+      className="pointer-events-none absolute inset-0 z-30 grid place-items-center bg-black/55 backdrop-blur-[2px]"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, transition: { duration: 0.5 } }}
+      role="status"
+    >
+      <motion.div
+        className="flex flex-col items-center gap-3 px-4 text-center"
+        initial={{ scale: 0.4, rotate: -6 }}
+        animate={{ scale: [0.4, 1.18, 1], rotate: 0 }}
+        transition={{ duration: 0.55, times: [0, 0.6, 1], ease: "easeOut" }}
+      >
+        <span className="rounded-full bg-emerald-400 px-4 py-1 text-xs font-bold tracking-[0.3em] text-ink uppercase">
+          Partner revealed
+        </span>
+        <motion.div
+          initial={{ rotateY: 180 }}
+          animate={{ rotateY: 0 }}
+          transition={{ delay: 0.15, duration: 0.6 }}
+          style={{ perspective: 600 }}
+          className="rounded-lg shadow-[0_0_40px_10px_rgb(52_211_153/0.6)]"
+        >
+          <PlayingCard card={card} size="lg" highlight />
+        </motion.div>
+        <p className="font-display text-3xl font-semibold text-card drop-shadow sm:text-5xl">
+          {isMe ? "You're the partner!" : `${name} is the partner!`}
+        </p>
+        <p className="text-sm text-card/80 sm:text-base">
+          {isMe ? `You're on ${declarer === "you" ? "your own" : `${declarer}'s`} side.` : `Teaming up with ${declarer}.`}
+        </p>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 export function Waiting({ children }: { children: React.ReactNode }) {
   return <p className="max-w-xs rounded-xl bg-black/25 px-4 py-3 text-center text-card/90">{children}</p>;
 }
@@ -154,6 +252,7 @@ function SeatBadge({
   players,
   hostId,
   online,
+  revealing,
 }: {
   seat: Seat;
   position: Position;
@@ -161,6 +260,7 @@ function SeatBadge({
   players: PlayerRow[];
   hostId: string;
   online: Set<string>;
+  revealing: boolean;
 }) {
   const player = players.find((p) => p.seat === seat);
   const isTurn = state.turn === seat;
@@ -178,6 +278,7 @@ function SeatBadge({
         className={clsx(
           "w-full rounded-xl border px-2.5 py-1.5 text-center shadow-lg backdrop-blur transition",
           isTurn ? "border-gold bg-ink/80 ring-2 ring-gold/60" : "border-white/10 bg-ink/60",
+          revealing && "animate-pulse border-emerald-400 ring-4 ring-emerald-400/70",
         )}
       >
         <div className="flex items-center justify-center gap-1.5 text-sm font-medium text-card">
