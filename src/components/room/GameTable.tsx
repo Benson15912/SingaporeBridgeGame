@@ -8,6 +8,7 @@ import { BidText, CardBack, CardText, PlayingCard, SuitText } from "@/components
 import { toast } from "@/components/Toaster";
 import type { RoomData } from "@/hooks/useRoom";
 import { api } from "@/lib/api";
+import { playSound } from "@/lib/sounds";
 import { SUIT_NAME, tricksNeeded, type Action, type GameState, type Seat } from "@/lib/game";
 import type { PlayerRow } from "@/lib/rows";
 import { Hand } from "./Hand";
@@ -63,14 +64,15 @@ export function GameTable({
   }, [myTurn]);
 
   const revealed = useRevealedPartner(state);
+  const finalReveal = useFinalReveal(state);
 
   const seatsAround: Seat[] = [1, 2, 3].map((o) => ((mySeat + o) % 4) as Seat);
 
   return (
-    <div className="mx-auto flex h-full min-h-[36rem] max-w-5xl flex-col gap-3 p-3 sm:p-4">
+    <div className="mx-auto flex min-h-full max-w-5xl flex-col gap-2 p-2 sm:gap-3 sm:p-4">
       <StatusBar state={state} players={data.players} mySeat={mySeat} />
 
-      <div className="felt felt-texture relative min-h-[24rem] flex-1 overflow-hidden rounded-[2rem] border border-white/10 shadow-[inset_0_0_60px_rgb(0_0_0/0.45)]">
+      <div className="felt felt-texture relative flex min-h-[22rem] flex-1 flex-col overflow-hidden rounded-[1.5rem] sm:rounded-[2rem] border border-white/10 shadow-[inset_0_0_60px_rgb(0_0_0/0.45)]">
         {seatsAround.map((seat) => (
           <SeatBadge
             key={seat}
@@ -84,7 +86,7 @@ export function GameTable({
           />
         ))}
 
-        <div className="absolute inset-x-2 top-20 bottom-4 grid place-items-center sm:inset-x-28 sm:top-16">
+        <div className="relative z-20 mx-2 mt-[5.5rem] mb-3 flex flex-1 items-center justify-center sm:mx-28 sm:mt-16 sm:mb-4">
           <CenterPanel state={state} data={data} mySeat={mySeat} act={act} code={code} />
         </div>
 
@@ -100,10 +102,21 @@ export function GameTable({
               isMe={revealed === mySeat}
             />
           )}
+          {finalReveal && state.finalCards && (
+            <FinalReveal
+              key={`final-${game.round_no}`}
+              cards={state.finalCards}
+              order={[0, 1, 2, 3].map((o) => (((state.turn ?? 0) + o) % 4) as Seat)}
+              players={data.players}
+              mySeat={mySeat}
+            />
+          )}
         </AnimatePresence>
       </div>
 
-      <div className="flex items-center justify-center gap-3 text-sm">
+      <Insights state={state} hand={data.hand} mySeat={mySeat} />
+
+      <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-sm">
         <span
           className={clsx(
             "font-medium",
@@ -157,7 +170,13 @@ function CenterPanel({
     case "playing":
       return <TrickArea state={state} players={data.players} mySeat={mySeat} />;
     case "done":
-      return <ResultPanel state={state} players={data.players} code={code} />;
+      return <ResultPanel
+          state={state}
+          players={data.players}
+          code={code}
+          isHost={data.room.host_id === data.players.find((p) => p.seat === mySeat)?.user_id}
+          target={data.room.target_score ?? 30}
+        />;
   }
 }
 
@@ -277,7 +296,7 @@ function SeatBadge({
       <div
         className={clsx(
           "w-full rounded-xl border px-2.5 py-1.5 text-center shadow-lg backdrop-blur transition",
-          isTurn ? "border-gold bg-ink/80 ring-2 ring-gold/60" : "border-white/10 bg-ink/60",
+          isTurn ? "animate-turn border-gold bg-ink/90 ring-2 ring-gold" : "border-white/10 bg-ink/60 opacity-80",
           revealing && "animate-pulse border-emerald-400 ring-4 ring-emerald-400/70",
         )}
       >
@@ -299,7 +318,12 @@ function SeatBadge({
         </div>
       </div>
       <div className="flex h-6 items-center">
-        {lastBid ? (
+        {isTurn && !lastBid ? (
+          <span className="flex items-center gap-1 rounded-full bg-gold px-2 py-0.5 text-[11px] font-bold text-ink">
+            <span className="size-1.5 animate-ping rounded-full bg-ink" />
+            {state.phase === "playing" ? "Playing" : state.phase === "partner" ? "Choosing" : "Bidding"}…
+          </span>
+        ) : lastBid ? (
           <span className="rounded-full bg-ink/70 px-2 py-0.5 text-xs text-card">
             {lastBid.bid ? <BidText {...lastBid.bid} /> : <span className="text-muted">Pass</span>}
           </span>
@@ -339,7 +363,7 @@ function StatusBar({ state, players, mySeat }: { state: GameState; players: Play
   const whoseTurn = state.turn === mySeat ? "Your turn" : state.turn !== null ? `${nameOf(players, state.turn)}'s turn` : "";
 
   return (
-    <div className="flex flex-wrap items-center gap-x-8 gap-y-3 rounded-2xl border border-line bg-panel px-5 py-3.5">
+    <div className="flex flex-wrap items-center gap-x-5 gap-y-2 rounded-2xl border border-line bg-panel px-3 py-2 sm:gap-x-8 sm:gap-y-3 sm:px-5 sm:py-3.5">
       {c ? (
         <>
           <Stat label="Contract">
@@ -378,7 +402,7 @@ function StatusBar({ state, players, mySeat }: { state: GameState; players: Play
       {whoseTurn && (
         <span
           className={clsx(
-            "ml-auto rounded-full px-3 py-1 text-base font-semibold",
+            "ml-auto rounded-full px-3 py-1 text-sm font-semibold sm:text-base",
             state.turn === mySeat ? "bg-gold text-ink" : "bg-panel-2 text-card/90",
           )}
         >
@@ -392,8 +416,152 @@ function StatusBar({ state, players, mySeat }: { state: GameState; players: Play
 function Stat({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-xs font-medium tracking-wider text-muted uppercase">{label}</span>
-      <span className="text-lg font-semibold text-card sm:text-xl">{children}</span>
+      <span className="text-[10px] font-medium tracking-wider text-muted uppercase sm:text-xs">{label}</span>
+      <span className="text-base font-semibold text-card sm:text-xl">{children}</span>
+    </div>
+  );
+}
+
+const FINAL_MS = 6500;
+
+/** True for a few seconds when the table drops to its last trick. Silent on page load. */
+function useFinalReveal(state: GameState): boolean {
+  const [show, setShow] = useState(false);
+  const prev = useRef(state.tricksPlayed);
+  useEffect(() => {
+    const was = prev.current;
+    prev.current = state.tricksPlayed;
+    if (was >= 12 || state.tricksPlayed !== 12 || state.result || !state.finalCards) return;
+    setShow(true);
+    const t = setTimeout(() => setShow(false), FINAL_MS);
+    return () => clearTimeout(t);
+  }, [state.tricksPlayed, state.result, state.finalCards]);
+  return show;
+}
+
+function FinalReveal({
+  cards,
+  order,
+  players,
+  mySeat,
+}: {
+  cards: string[];
+  order: Seat[];
+  players: PlayerRow[];
+  mySeat: Seat;
+}) {
+  const STEP = 1.1;
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // On short screens (landscape phones) make sure the reveal is on screen.
+    ref.current?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, []);
+  useEffect(() => {
+    const timers = order.map((_, i) =>
+      setTimeout(() => playSound(i === order.length - 1 ? "partnerReveal" : "select"), (0.8 + i * STEP) * 1000),
+    );
+    return () => timers.forEach(clearTimeout);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <motion.div
+      ref={ref}
+      className="pointer-events-none absolute inset-0 z-30 flex flex-col items-center justify-center gap-4 bg-black/70 px-2 backdrop-blur-[2px]"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, transition: { duration: 0.6 } }}
+      role="status"
+    >
+      <motion.span
+        className="rounded-full bg-gold px-4 py-1 text-xs font-bold tracking-[0.3em] text-ink uppercase"
+        initial={{ scale: 0.5, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+      >
+        Final trick
+      </motion.span>
+      <div className="flex flex-wrap justify-center gap-3 sm:gap-5">
+        {order.map((seat, i) => (
+          <div key={seat} className="flex flex-col items-center gap-2" style={{ perspective: 700 }}>
+            <motion.div
+              initial={{ rotateY: 180, y: 20, opacity: 0 }}
+              animate={{ rotateY: 0, y: 0, opacity: 1 }}
+              transition={{ delay: 0.8 + i * STEP, duration: 0.7, type: "spring", damping: 14 }}
+              className="relative"
+            >
+              <motion.div
+                className="absolute inset-0 rounded-lg shadow-[0_0_30px_6px_rgb(226_183_92/0.55)]"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0, 1, 0] }}
+                transition={{ delay: 0.8 + i * STEP + 0.3, duration: 1 }}
+              />
+              <PlayingCard card={cards[seat]} size="md" />
+            </motion.div>
+            <motion.span
+              className="max-w-20 truncate text-xs font-medium text-card sm:text-sm"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.8 + i * STEP + 0.3 }}
+            >
+              {seat === mySeat ? "You" : nameOf(players, seat)}
+            </motion.span>
+          </div>
+        ))}
+      </div>
+      <p className="text-center text-sm text-card/80">Everyone is down to their last card…</p>
+    </motion.div>
+  );
+}
+
+/** What the table can tell me about who is on which side. */
+function Insights({ state, hand, mySeat }: { state: GameState; hand: string[]; mySeat: Seat }) {
+  const c = state.contract;
+  if (!c || !state.partnerCard || state.phase === "done") return null;
+
+  const isDeclarer = c.declarer === mySeat;
+  const holdsCard = hand.includes(state.partnerCard);
+  const partner = state.partnerRevealed;
+  const need = tricksNeeded(c.level);
+  const side = (s: Seat) => s === c.declarer || s === partner;
+  const declTricks = ([0, 1, 2, 3] as Seat[]).filter(side).reduce<number>((n, s) => n + state.tricksWon[s], 0);
+  const defTricks = state.tricksPlayed - declTricks;
+  const defNeed = 14 - need;
+
+  const role = isDeclarer
+    ? { text: "You're the declarer", tone: "text-gold" }
+    : holdsCard
+      ? { text: "You hold the partner card, so you're on the declarer's side", tone: "text-emerald-300" }
+      : partner !== null
+        ? { text: "You're a defender", tone: "text-card" }
+        : { text: "You're a defender (partner still hidden)", tone: "text-card" };
+  const declSide = isDeclarer || holdsCard;
+  const mine = declSide ? declTricks : defTricks;
+  const target = declSide ? need : defNeed;
+
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 rounded-xl bg-panel/70 px-3 py-1.5 text-xs sm:text-sm">
+      <span className={clsx("font-medium", role.tone)}>{role.text}</span>
+      <span className="text-muted">
+        {!declSide && partner === null ? (
+          <>
+            Declarer has <span className="font-semibold text-card tabular-nums">{state.tricksWon[c.declarer]}</span> tricks
+            (side needs {need})
+          </>
+        ) : (
+          <>
+            Your side{" "}
+            <span className="font-semibold text-card tabular-nums">
+              {mine}/{target}
+            </span>{" "}
+            tricks
+          </>
+        )}
+      </span>
+      {partner === null && !isDeclarer && !holdsCard && (
+        <span className="text-muted">
+          Partner card <CardText card={state.partnerCard} /> still to be played
+        </span>
+      )}
     </div>
   );
 }

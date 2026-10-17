@@ -55,6 +55,10 @@ describe("random full games", () => {
       for (let steps = 0; r.state.phase !== "done"; steps++) {
         expect(steps).toBeLessThan(2000);
         r = randomStep(r);
+        // Once 12 tricks are down, every seat's last card is published and is the card they really hold.
+        if (r.state.tricksPlayed === 12 && !r.state.result) {
+          r.hands.forEach((h, seat) => h[0] && expect(r.state.finalCards![seat]).toBe(h[0]));
+        }
         // Cards are never created or lost.
         const inTrick = r.state.currentTrick?.winner === null ? r.state.currentTrick.cards.length : 0;
         expect(r.hands.flat().length + inTrick + r.state.tricksPlayed * 4).toBe(52);

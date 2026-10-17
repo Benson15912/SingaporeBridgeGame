@@ -33,7 +33,7 @@ const SIZES = {
   xs: "w-8 h-11 rounded-md text-[10px]",
   sm: "w-11 h-16 rounded-md text-xs",
   md: "w-14 h-20 sm:w-16 sm:h-24 rounded-lg text-sm",
-  lg: "w-16 h-24 sm:w-20 sm:h-28 rounded-lg text-base",
+  lg: "w-14 h-20 min-[400px]:w-16 min-[400px]:h-24 sm:w-20 sm:h-28 rounded-lg text-base",
 };
 
 export function PlayingCard({

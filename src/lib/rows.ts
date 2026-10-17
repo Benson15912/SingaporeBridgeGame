@@ -8,6 +8,8 @@ export interface RoomRow {
   status: "lobby" | "playing";
   dealer_seat: Seat;
   round_no: number;
+  /** First player to reach this many points wins the match. */
+  target_score?: number;
 }
 
 export interface PlayerRow {
@@ -37,7 +39,23 @@ export interface ScoreRow {
   user_id: string;
   points: number;
   games_won: number;
+  matches_won?: number;
 }
+
+export interface HistoryRow {
+  room_id: string;
+  round_no: number;
+  declarer_id: string;
+  partner_id: string;
+  level: number;
+  suit: string;
+  declarer_won: boolean;
+  declarer_tricks: number;
+}
+
+export const DEFAULT_TARGET = 30;
+export const TARGET_MIN = 5;
+export const TARGET_MAX = 200;
 
 export interface ChatRow {
   id: number;

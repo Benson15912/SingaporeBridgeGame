@@ -36,7 +36,7 @@ Play Floating Bridge (Singapore Bridge) online with 3 friends. One player create
 
 1. Create a project at [supabase.com](https://supabase.com). The free tier is fine.
 2. Go to **Authentication → Sign In / Providers** and turn on **Allow anonymous sign-ins**.
-3. Open the **SQL Editor** and run `supabase/migrations/0001_init.sql`, then `supabase/migrations/0002_cleanup.sql`. Alternatively, run `supabase db push` with the Supabase CLI. If the second file fails on `create extension`, enable **pg_cron** under **Database → Extensions** and run it again.
+3. Open the **SQL Editor** and run `supabase/migrations/0001_init.sql`, then `supabase/migrations/0002_cleanup.sql` and `supabase/migrations/0003_match_target.sql`. Alternatively, run `supabase db push` with the Supabase CLI. If the second file fails on `create extension`, enable **pg_cron** under **Database → Extensions** and run it again.
 4. Go to **Project Settings → API** and copy the project URL, the `anon` key and the `service_role` key.
 
 ### 2. Run locally

@@ -1,7 +1,7 @@
 "use client";
 
 import clsx from "clsx";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BidText, CardText, PlayingCard, SuitText } from "@/components/PlayingCard";
 import { toast } from "@/components/Toaster";
 import { api } from "@/lib/api";
@@ -26,7 +26,7 @@ import type { Act } from "./GameTable";
 import { Waiting } from "./GameTable";
 import { nameOf } from "./util";
 
-const panel = "w-full max-w-sm rounded-2xl border border-white/10 bg-ink/80 p-4 shadow-2xl backdrop-blur";
+const panel = "w-full max-w-sm rounded-2xl border border-white/10 bg-ink/80 p-3 sm:p-4 shadow-2xl backdrop-blur";
 
 export function WashPrompt({ state, hand, mySeat, act }: { state: GameState; hand: Card[]; mySeat: Seat; act: Act }) {
   const [busy, setBusy] = useState(false);
@@ -95,6 +95,10 @@ export function BiddingPanel({
   const [busy, setBusy] = useState(false);
   const myTurn = state.turn === mySeat;
   const top = highestBid(state.bids);
+  const historyRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    historyRef.current?.scrollTo({ top: historyRef.current.scrollHeight, behavior: "smooth" });
+  }, [state.bids.length]);
 
   const send = async (action: Parameters<Act>[0]) => {
     setBusy(true);
@@ -119,7 +123,7 @@ export function BiddingPanel({
       </div>
 
       {state.bids.length > 0 && (
-        <div className="mt-2 flex max-h-16 flex-wrap gap-1 overflow-y-auto text-xs">
+        <div ref={historyRef} className="mt-2 flex max-h-16 flex-wrap gap-1 overflow-y-auto text-xs">
           {state.bids.map((b, i) => (
             <span key={i} className="rounded bg-panel-2 px-1.5 py-0.5 text-card/80">
               {nameOf(players, b.seat)} {b.bid ? <BidText {...b.bid} /> : <span className="text-muted">pass</span>}
@@ -130,7 +134,14 @@ export function BiddingPanel({
 
       {myTurn ? (
         <>
-          <div className="mt-3 grid grid-cols-5 gap-1">
+          <button
+            disabled={busy}
+            onClick={() => send({ type: "pass" })}
+            className="mt-3 w-full rounded-lg border border-line py-2.5 font-semibold text-card hover:bg-panel-2 disabled:opacity-50"
+          >
+            Pass
+          </button>
+          <div className="mt-2 grid grid-cols-5 gap-1">
             {[1, 2, 3, 4, 5, 6, 7].map((level) =>
               BID_SUITS.map((suit) => {
                 const ok = canBid(state.bids, { level, suit });
@@ -140,7 +151,7 @@ export function BiddingPanel({
                     disabled={!ok || busy}
                     onClick={() => send({ type: "bid", bid: { level, suit } })}
                     className={clsx(
-                      "rounded-md py-1.5 text-sm transition",
+                      "rounded-md py-2 text-sm transition sm:py-1.5",
                       ok ? "bg-panel-2 hover:bg-gold hover:text-ink" : "bg-panel/50 text-card/20",
                     )}
                   >
@@ -151,13 +162,6 @@ export function BiddingPanel({
               }),
             )}
           </div>
-          <button
-            disabled={busy}
-            onClick={() => send({ type: "pass" })}
-            className="mt-2 w-full rounded-lg border border-line py-2 font-semibold text-card hover:bg-panel-2 disabled:opacity-50"
-          >
-            Pass
-          </button>
         </>
       ) : (
         <p className="mt-4 text-center text-sm text-card/80">Waiting for {nameOf(players, state.turn)} to bid…</p>
@@ -214,7 +218,7 @@ export function PartnerPicker({ state, hand, act }: { state: GameState; hand: Ca
               }}
               title={mine ? "In your hand" : undefined}
               className={clsx(
-                "rounded-md py-1.5 text-sm font-semibold transition",
+                "rounded-md py-2 text-sm font-semibold transition sm:py-1.5",
                 mine
                   ? "bg-panel/50 text-card/20 line-through"
                   : picked === card
@@ -245,8 +249,21 @@ export function PartnerPicker({ state, hand, act }: { state: GameState; hand: Ca
   );
 }
 
-export function ResultPanel({ state, players, code }: { state: GameState; players: PlayerRow[]; code: string }) {
+export function ResultPanel({
+  state,
+  players,
+  code,
+  isHost,
+  target,
+}: {
+  state: GameState;
+  players: PlayerRow[];
+  code: string;
+  isHost: boolean;
+  target: number;
+}) {
   const [busy, setBusy] = useState(false);
+  const matchWinner = state.result?.matchWinner ?? null;
   const r = state.result!;
   const c = state.contract!;
   const names = (seats: Seat[]) => seats.map((s) => nameOf(players, s)).join(" & ");
@@ -255,7 +272,7 @@ export function ResultPanel({ state, players, code }: { state: GameState; player
   const next = async () => {
     setBusy(true);
     try {
-      await api("/api/game/next-round", { code });
+      await api(matchWinner !== null ? "/api/game/new-match" : "/api/game/next-round", { code });
     } catch (err) {
       toast.error((err as Error).message);
       setBusy(false);
@@ -264,6 +281,12 @@ export function ResultPanel({ state, players, code }: { state: GameState; player
 
   return (
     <div className={clsx(panel, "text-center")}>
+      {matchWinner !== null && (
+        <div className="mb-3 rounded-xl bg-gold/15 py-3 ring-1 ring-gold/60">
+          <p className="text-xs tracking-widest text-gold uppercase">Match won · first to {target}</p>
+          <p className="font-display text-2xl text-gold">🏆 {nameOf(players, matchWinner)}</p>
+        </div>
+      )}
       <p className="text-xs tracking-widest text-muted uppercase">Round over</p>
       <p className="mt-1 font-display text-2xl text-card">
         {r.declarerWon ? (
@@ -299,13 +322,17 @@ export function ResultPanel({ state, players, code }: { state: GameState; player
       <p className="mt-2 text-sm text-gold">
         +{pointsForWin(c)} to {names(winners)}
       </p>
+      {matchWinner !== null && !isHost ? (
+        <p className="mt-4 text-sm text-muted">Waiting for the host to start a new match…</p>
+      ) : (
       <button
         disabled={busy}
         onClick={next}
         className="mt-4 w-full rounded-lg bg-gold py-2.5 font-semibold text-ink hover:bg-gold-soft disabled:opacity-50"
       >
-        {busy ? "Dealing…" : "Deal next round"}
+        {busy ? "Dealing…" : matchWinner !== null ? "Start new match" : "Deal next round"}
       </button>
+      )}
     </div>
   );
 }

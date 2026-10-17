@@ -47,3 +47,11 @@ body {
   background: var(--color-line);
   border-radius: 4px;
 }
+
+@keyframes turn-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(226 183 92 / 0.5); }
+  50% { box-shadow: 0 0 18px 4px rgb(226 183 92 / 0.55); }
+}
+.animate-turn {
+  animation: turn-glow 1.6s ease-in-out infinite;
+}

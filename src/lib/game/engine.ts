@@ -26,6 +26,7 @@ export function newRound(dealer: Seat, dealt: Hands = deal(), notice: string | n
     tricksWon: [0, 0, 0, 0],
     trumpBroken: false,
     result: null,
+    finalCards: null,
     notice,
   };
   return { state, secrets: { partnerSeat: null }, hands };
@@ -132,6 +133,7 @@ export function applyAction(round: Round, seat: Seat, action: Action): Round {
       state.turn = winner;
 
       const result = roundResult(contract, secrets.partnerSeat!, state.tricksWon);
+      if (!result && state.tricksPlayed === 12) state.finalCards = hands.map((h) => h[0]);
       if (result) {
         state.result = result;
         state.phase = "done";

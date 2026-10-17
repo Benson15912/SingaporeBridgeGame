@@ -6,7 +6,7 @@ import { useState } from "react";
 import { toast } from "@/components/Toaster";
 import { api } from "@/lib/api";
 import type { Seat } from "@/lib/game";
-import type { PlayerRow } from "@/lib/rows";
+import { DEFAULT_TARGET, TARGET_MAX, TARGET_MIN, type PlayerRow } from "@/lib/rows";
 import type { RoomData } from "@/hooks/useRoom";
 import { CodeChip } from "./RoomScreen";
 import { SEAT_WIND } from "./util";
@@ -38,6 +38,17 @@ export function Lobby({
   async function sit(seat: Seat) {
     try {
       await api("/api/rooms/seat", { code, seat });
+    } catch (err) {
+      toast.error((err as Error).message);
+    }
+  }
+
+  const target = data.room.target_score ?? DEFAULT_TARGET;
+  async function setTarget(value: number) {
+    const next = Math.min(TARGET_MAX, Math.max(TARGET_MIN, Math.round(value)));
+    if (next === target) return;
+    try {
+      await api("/api/rooms/target", { code, target: next });
     } catch (err) {
       toast.error((err as Error).message);
     }
@@ -110,6 +121,48 @@ export function Lobby({
       <p className="mt-4 text-center text-sm text-muted">
         Players opposite each other aren&apos;t fixed partners. The winning bidder calls a card, and whoever holds it becomes their partner.
       </p>
+
+      <div className="mt-6 flex flex-col items-center gap-2">
+        <p className="text-xs tracking-wider text-muted uppercase">First to reach</p>
+        {isHost ? (
+          <>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setTarget(target - 5)}
+                aria-label="Lower target"
+                className="size-10 rounded-lg border border-line bg-panel text-xl text-card hover:border-gold/60"
+              >
+                −
+              </button>
+              <span className="w-20 text-center font-display text-3xl text-gold tabular-nums">{target}</span>
+              <button
+                onClick={() => setTarget(target + 5)}
+                aria-label="Raise target"
+                className="size-10 rounded-lg border border-line bg-panel text-xl text-card hover:border-gold/60"
+              >
+                +
+              </button>
+            </div>
+            <div className="flex gap-1.5">
+              {[10, 20, 30, 50].map((v) => (
+                <button
+                  key={v}
+                  onClick={() => setTarget(v)}
+                  className={clsx(
+                    "rounded-full border px-3 py-1 text-sm",
+                    v === target ? "border-gold bg-gold/15 text-gold" : "border-line text-muted hover:text-card",
+                  )}
+                >
+                  {v}
+                </button>
+              ))}
+            </div>
+          </>
+        ) : (
+          <span className="font-display text-3xl text-gold tabular-nums">{target}</span>
+        )}
+        <p className="text-xs text-muted">points wins the match</p>
+      </div>
 
       <div className="mt-8">
         {isHost ? (

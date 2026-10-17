@@ -17,6 +17,8 @@ export const POST = route(async (body, userId) => {
   const { round, version, roundNo } = await loadRound(room.id);
   if (round.state.phase !== "done") throw new HttpError(409, "This round isn't finished yet.");
 
+  if (round.state.result?.matchWinner != null) throw new HttpError(409, "The match is over. Start a new match.");
+
   const dealer = nextSeat(round.state.dealer);
   try {
     // expectedVersion stops two players clicking at once from dealing twice.

@@ -3,7 +3,7 @@
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Card } from "@/lib/game";
-import type { ChatRow, GameRow, PlayerRow, RoomRow, ScoreRow } from "@/lib/rows";
+import type { ChatRow, GameRow, HistoryRow, PlayerRow, RoomRow, ScoreRow } from "@/lib/rows";
 import { normaliseCode } from "@/lib/rows";
 import { ensureSession, supabaseBrowser } from "@/lib/supabase/client";
 
@@ -14,6 +14,7 @@ export interface RoomData {
   hand: Card[];
   scores: ScoreRow[];
   chat: ChatRow[];
+  history: HistoryRow[];
 }
 
 export type RoomStatus =
@@ -51,6 +52,9 @@ export function useRoom(rawCode: string) {
           ?.cards as Card[]) ?? [],
       scores: async () =>
         (await db.from("scores").select("*").eq("room_id", roomId).returns<ScoreRow[]>()).data ?? [],
+      history: async () =>
+        (await db.from("round_history").select("*").eq("room_id", roomId).order("round_no").returns<HistoryRow[]>())
+          .data ?? [],
       chat: async () =>
         (
           (
@@ -86,15 +90,16 @@ export function useRoom(rawCode: string) {
         }
         roomIdRef.current = room.id;
         const f = fetchers(room.id, uid);
-        const [players, game, hand, scores, chat] = await Promise.all([
+        const [players, game, hand, scores, chat, history] = await Promise.all([
           f.players(),
           f.game(),
           f.hand(),
           f.scores(),
           f.chat(),
+          f.history(),
         ]);
         if (cancelled) return;
-        setData({ room, players, game, hand, scores, chat });
+        setData({ room, players, game, hand, scores, chat, history });
         setStatus("ready");
 
         const refresh = async <K extends keyof RoomData>(key: K) => {
@@ -130,6 +135,9 @@ export function useRoom(rawCode: string) {
             else refresh("hand");
           })
           .on("postgres_changes", { event: "*", schema: "public", table: "scores", filter }, () => refresh("scores"))
+          .on("postgres_changes", { event: "*", schema: "public", table: "round_history", filter }, () =>
+            refresh("history"),
+          )
           .on(
             "postgres_changes",
             { event: "INSERT", schema: "public", table: "chat_messages", filter },
@@ -147,7 +155,7 @@ export function useRoom(rawCode: string) {
             if (state === "SUBSCRIBED") {
               channel!.track({ at: Date.now() });
               // Catch anything that changed between the first load and subscribing.
-              (["room", "players", "game", "hand", "scores"] as const).forEach(refresh);
+              (["room", "players", "game", "hand", "scores", "history"] as const).forEach(refresh);
             }
           });
       } catch (err) {

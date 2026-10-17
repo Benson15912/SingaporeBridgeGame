@@ -38,6 +38,8 @@ export interface RoundResult {
   defenders: Seat[];
   declarerTricks: number;
   defenderTricks: number;
+  /** Set when this round pushed a player to the room's target score. */
+  matchWinner?: Seat | null;
 }
 
 /** Everything every player at the table may see. */
@@ -57,6 +59,8 @@ export interface GameState {
   tricksWon: [number, number, number, number];
   trumpBroken: boolean;
   result: RoundResult | null;
+  /** Each seat's last card, public once 12 tricks are done (those plays are forced anyway). Indexed by seat. */
+  finalCards?: Card[] | null;
   /** Human-readable note about the last redeal, if any. */
   notice: string | null;
 }

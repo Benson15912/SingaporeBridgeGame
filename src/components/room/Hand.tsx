@@ -59,7 +59,7 @@ export function Hand({ cards, state, mySeat, act }: { cards: Card[]; state: Game
   }
 
   return (
-    <div className="flex justify-center pt-4 pb-2" role="list" aria-label="Your hand">
+    <div className={clsx("sticky bottom-0 z-30 -mx-2 flex justify-center border-t bg-ink/90 px-2 pt-4 pb-2 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:pt-4 sm:backdrop-blur-none", state.turn === mySeat && state.phase !== "done" ? "border-gold shadow-[0_-8px_24px_-6px_rgb(226_183_92/0.45)] sm:rounded-2xl sm:bg-gold/5" : "border-white/10")} role="list" aria-label="Your hand">
       <AnimatePresence>
         {cards.map((card) => {
           const isLegal = legal.includes(card);
@@ -82,13 +82,14 @@ export function Hand({ cards, state, mySeat, act }: { cards: Card[]; state: Game
                 damping: 28,
                 delay: dealOrder.current.get(card) !== undefined ? dealOrder.current.get(card)! * DEAL_STEP : 0,
               }}
-              disabled={!isLegal}
-              onClick={() => play(card)}
-              whileHover={isLegal ? { y: -14 } : undefined}
+              aria-disabled={!isLegal}
+              onClick={() => isLegal && play(card)}
+              whileHover={{ y: isLegal ? -18 : -8, scale: isLegal ? 1.06 : 1 }}
+              whileTap={isLegal ? { y: -24 } : undefined}
               className={clsx(
-                "-ml-10 first:ml-0 sm:-ml-9 lg:-ml-6",
+                "relative hover:z-20 focus-visible:z-20 -ml-[33px] first:ml-0 max-[359px]:-ml-9 min-[400px]:-ml-10 sm:-ml-9 lg:-ml-6",
                 dim && "brightness-50",
-                isLegal ? "cursor-pointer" : "cursor-default",
+                isLegal ? "cursor-pointer drop-shadow-[0_6px_10px_rgb(0_0_0/0.5)]" : "cursor-default",
               )}
               aria-label={card}
             >
