@@ -41,11 +41,14 @@ export function PlayingCard({
   size = "md",
   className,
   highlight,
+  fan,
 }: {
   card: Card;
   size?: keyof typeof SIZES;
   className?: string;
   highlight?: boolean;
+  /** Overlapped in a hand on phones: big corner index only, since the centre pip would be half hidden. */
+  fan?: boolean;
 }) {
   const suit = suitOf(card);
   return (
@@ -59,9 +62,14 @@ export function PlayingCard({
       )}
       aria-label={`${rankLabel(card)} of ${suit}`}
     >
-      <div className="absolute top-[6%] left-[10%] flex flex-col items-center leading-none font-semibold">
+      <div
+        className={clsx(
+          "absolute top-[6%] left-[10%] flex flex-col items-center leading-none font-semibold",
+          fan && "max-sm:left-[12%] max-sm:text-xl",
+        )}
+      >
         <span>{rankLabel(card)}</span>
-        <SuitIcon suit={suit} className="size-[1.1em]" />
+        <SuitIcon suit={suit} className={clsx("size-[1.1em]", fan && "max-sm:mt-0.5 max-sm:size-[1.15em]")} />
       </div>
       {size !== "xs" && (
         <div className="absolute right-[10%] bottom-[6%] flex rotate-180 flex-col items-center leading-none font-semibold">
@@ -69,7 +77,7 @@ export function PlayingCard({
           <SuitIcon suit={suit} className="size-[1.1em]" />
         </div>
       )}
-      <div className="absolute inset-0 grid place-items-center">
+      <div className={clsx("absolute inset-0 grid place-items-center", fan && "max-sm:hidden")}>
         <SuitIcon suit={suit} className={size === "xs" ? "size-[2.2em]" : "size-[2.8em]"} />
       </div>
     </div>

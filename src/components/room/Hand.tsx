@@ -92,13 +92,13 @@ export function Hand({ cards, state, mySeat, act }: { cards: Card[]; state: Game
               whileHover={{ y: isLegal ? -18 : -8, scale: isLegal ? 1.06 : 1 }}
               whileTap={isLegal ? { y: -24 } : undefined}
               className={clsx(
-                "relative hover:z-20 focus-visible:z-20 max-sm:nth-[n+8]:-mt-9 sm:-ml-9 sm:first:ml-0 lg:-ml-6",
+                "relative hover:z-20 focus-visible:z-20 max-sm:nth-[n+8]:-mt-7 sm:-ml-9 sm:first:ml-0 lg:-ml-6",
                 dim && "brightness-50",
                 isLegal ? "cursor-pointer drop-shadow-[0_6px_10px_rgb(0_0_0/0.5)]" : "cursor-default",
               )}
               aria-label={card}
             >
-              <PlayingCard card={card} size="lg" highlight={isLegal} />
+              <PlayingCard card={card} size="lg" highlight={isLegal} fan />
             </motion.button>
           );
         })}
