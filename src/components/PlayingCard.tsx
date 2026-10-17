@@ -51,6 +51,22 @@ export function PlayingCard({
   fan?: boolean;
 }) {
   const suit = suitOf(card);
+  const rank = rankLabel(card);
+  const small = size === "xs";
+  // One fixed 100x140 drawing that scales with the card, so layout never depends on the card's size.
+  const Pip = ({ x, y, w, className }: { x: number; y: number; w: number; className?: string }) => (
+    <svg x={x} y={y} width={w} height={w} viewBox="0 0 24 24" fill="currentColor" className={className}>
+      {SUIT_PATH[suit]}
+    </svg>
+  );
+  const Corner = ({ big, className }: { big?: boolean; className?: string }) => (
+    <g className={className}>
+      <text x={big ? 17 : 15} y={big ? 36 : 29} textAnchor="middle" fontSize={rank === "10" ? (big ? 32 : 24) : big ? 36 : 28} fontWeight="700" fill="currentColor" fontFamily="inherit">
+        {rank}
+      </text>
+      <Pip x={big ? 3 : 4} y={big ? 42 : 34} w={big ? 28 : 22} />
+    </g>
+  );
   return (
     <div
       className={clsx(
@@ -62,24 +78,16 @@ export function PlayingCard({
       )}
       aria-label={`${rankLabel(card)} of ${suit}`}
     >
-      <div
-        className={clsx(
-          "absolute top-[6%] left-[10%] flex flex-col items-center leading-none font-semibold",
-          fan && "max-sm:left-[12%] max-sm:text-xl",
+      <svg viewBox="0 0 100 140" className="absolute inset-0 size-full" aria-hidden>
+        <Corner className={fan ? "max-sm:hidden" : undefined} />
+        {fan && <Corner big className="hidden max-sm:block" />}
+        {!small && (
+          <g transform="rotate(180 50 70)" className={fan ? "max-sm:hidden" : undefined}>
+            <Corner />
+          </g>
         )}
-      >
-        <span>{rankLabel(card)}</span>
-        <SuitIcon suit={suit} className={clsx("size-[1.1em]", fan && "max-sm:mt-0.5 max-sm:size-[1.15em]")} />
-      </div>
-      {size !== "xs" && (
-        <div className="absolute right-[10%] bottom-[6%] flex rotate-180 flex-col items-center leading-none font-semibold">
-          <span>{rankLabel(card)}</span>
-          <SuitIcon suit={suit} className="size-[1.1em]" />
-        </div>
-      )}
-      <div className={clsx("absolute inset-0 grid place-items-center", fan && "max-sm:hidden")}>
-        <SuitIcon suit={suit} className={size === "xs" ? "size-[2.2em]" : "size-[2.8em]"} />
-      </div>
+        <Pip x={small ? 20 : 25} y={small ? 40 : 44} w={small ? 60 : 50} className={fan ? "max-sm:hidden" : undefined} />
+      </svg>
     </div>
   );
 }
