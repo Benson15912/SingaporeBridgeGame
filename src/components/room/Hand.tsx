@@ -59,15 +59,20 @@ export function Hand({ cards, state, mySeat, act }: { cards: Card[]; state: Game
   }
 
   return (
-    <div className={clsx("sticky bottom-0 z-30 -mx-2 flex justify-center border-t bg-ink/90 px-2 pt-4 pb-2 backdrop-blur sm:static sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:pt-4 sm:backdrop-blur-none", state.turn === mySeat && state.phase !== "done" ? "border-gold shadow-[0_-8px_24px_-6px_rgb(226_183_92/0.45)] sm:rounded-2xl sm:bg-gold/5" : "border-white/10")} role="list" aria-label="Your hand">
+    <div className={clsx("sticky bottom-0 z-30 -mx-2 grid grid-cols-14 justify-items-center border-t bg-ink/90 px-2 pt-4 pb-2 backdrop-blur sm:static sm:mx-0 sm:flex sm:justify-center sm:border-0 sm:bg-transparent sm:px-0 sm:pt-4 sm:backdrop-blur-none", state.turn === mySeat && state.phase !== "done" ? "border-gold shadow-[0_-8px_24px_-6px_rgb(226_183_92/0.45)] sm:rounded-2xl sm:bg-gold/5" : "border-white/10")} role="list" aria-label="Your hand">
       <AnimatePresence>
-        {cards.map((card) => {
+        {cards.map((card, i) => {
+          // Phones: two rows of up to 7, centred on a 14-column grid so every card shows its corner.
+          const row = i < 7 ? 0 : 1;
+          const inRow = row ? cards.length - 7 : Math.min(cards.length, 7);
+          const col = 1 + (7 - inRow) + (i % 7) * 2;
           const isLegal = legal.includes(card);
           const dim = canPlay && !isLegal;
           return (
             <motion.button
               layout
               key={card}
+              style={{ gridRow: row + 1, gridColumn: `${col} / span 2` }}
               role="listitem"
               initial={
                 dealOrder.current.has(card)
@@ -87,7 +92,7 @@ export function Hand({ cards, state, mySeat, act }: { cards: Card[]; state: Game
               whileHover={{ y: isLegal ? -18 : -8, scale: isLegal ? 1.06 : 1 }}
               whileTap={isLegal ? { y: -24 } : undefined}
               className={clsx(
-                "relative hover:z-20 focus-visible:z-20 -ml-[33px] first:ml-0 max-[359px]:-ml-9 min-[400px]:-ml-10 sm:-ml-9 lg:-ml-6",
+                "relative hover:z-20 focus-visible:z-20 max-sm:nth-[n+8]:-mt-9 sm:-ml-9 sm:first:ml-0 lg:-ml-6",
                 dim && "brightness-50",
                 isLegal ? "cursor-pointer drop-shadow-[0_6px_10px_rgb(0_0_0/0.5)]" : "cursor-default",
               )}
